@@ -1,0 +1,96 @@
+version: "3"
+networks:
+  daler-net1:
+    driver: bridge
+    external: true
+  daler-net2:
+    driver: bridge
+    external: true
+  daler-net3:
+    driver: bridge
+    external: true
+  daler-net4:
+    driver: bridge
+    external: true
+
+services:
+  grafana:
+    container_name: grafana
+    image: "grafana/grafana" #ghcr.io/redisgrafana/redis-app:latest
+    ports:
+      - "3000:3000"
+    networks:
+      daler-net1:
+        ipv4_address: 172.20.0.2
+      daler-net2:
+        ipv4_address: 172.21.0.2
+      daler-net3:
+        ipv4_address: 172.22.0.2
+      daler-net4:
+        ipv4_address: 172.23.0.2
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+      - ./grafana:/etc/grafana
+        #- ./redis-datasource:/var/lib/grafana/plugins
+    environment:
+      - GF_INSTALL_PLUGINS=redis-datasource
+
+  nginx:
+    image: "nginx" #:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      daler-net1:
+        ipv4_address: 172.20.0.3
+    volumes:
+      - ./default.conf:/etc/nginx/conf.d/default.conf:rw
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    #volumes:
+    # - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # - prometheus_data:/prometheus
+    #command:
+    # - '--config.file=/etc/prometheus/prometheus.yml'
+    # - '--storage.tsdb.path=/prometheus'
+    # - '--web.console.libraries=/etc/prometheus/console_libraries'
+    # - '--web.console.templates=/etc/prometheus/consoles'
+    # - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    #expose:
+    # - 9090
+    networks:
+      daler-net2:
+        ipv4_address: 172.21.0.3
+
+        # redis:
+        # image: "redis" #:latest
+        # ports:
+        # - "6379:6379"
+  redis:
+    container_name: redis
+    image: "redis" #ghcr.io/redisgrafana/redis-opencv:latest
+    ports:
+      - 6379:6379
+    networks:
+      daler-net3:
+        ipv4_address: 172.22.0.3
+
+  database:
+    image: "postgres" # use latest official postgres version
+    env_file:
+      - database.env # configure postgres
+    networks:
+      daler-net4:
+        ipv4_address: 172.23.0.3
+    ports:
+      - "5432:5432"
+        # volumes:
+        # - database-data:/var/lib/postgresql/data/ # сохранение данных, даже если контейнер завершает работу
+        #volumes:
+        #database-data: # именованными томами можно проще управлять с помощью docker-compose
+
